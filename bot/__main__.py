@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # Настройки бота и администратора
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-ADMIN_ID = int(os.getenv('ADMIN_ID'))
+ADMIN_IDS = list(map(int, os.getenv('ADMIN_IDS').split(',')))
 
 # Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN)
@@ -27,7 +27,7 @@ message_ids = {}
 # Кастомный фильтр для проверки на администратора
 class IsAdminFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
-        return message.from_user.id == ADMIN_ID
+        return message.from_user.id in ADMIN_IDS
 
 
 @dp.message(CommandStart())
@@ -58,7 +58,8 @@ async def forward_to_admin(message: Message):
     text = f"id: {message.from_user.id}\n\n{message.text}"
     try:
         # Отправляем сообщение админу и сохраняем ID сообщения для отслеживания ответа
-        forwarded_message = await bot.send_message(chat_id=ADMIN_ID, text=text)
+        for admin in ADMIN_IDS:
+            forwarded_message = await bot.send_message(chat_id=admin, text=text)
         # Сохраняем ID сообщения пользователя и ID пересланного админу
         message_ids[forwarded_message.message_id] = message.from_user.id
         logger.info(f"Сообщение от пользователя {message.from_user.id} переслано админу.")
