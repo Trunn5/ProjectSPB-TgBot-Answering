@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # Настройки бота и администратора
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-ADMIN_ID = os.getenv('ADMIN_ID')
+ADMIN_ID = int(os.getenv('ADMIN_ID'))
 
 # Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN)
@@ -50,6 +50,7 @@ async def reply_to_user(message: Message):
     else:
         await message.reply("Не удалось найти пользователя для ответа.")
         logger.warning("Не удалось найти пользователя для ответа администратора.")
+
 
 @dp.message(F.text)
 async def forward_to_admin(message: Message):
