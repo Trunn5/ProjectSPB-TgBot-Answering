@@ -7,6 +7,7 @@ import csv
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart, BaseFilter, Command
 from aiogram.types import Message
+from aiogram.types import FSInputFile
 from dotenv import load_dotenv
 
 # Настройки бота и администратора
