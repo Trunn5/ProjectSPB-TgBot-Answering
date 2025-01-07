@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import os
+import sqlite3
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import CommandStart, BaseFilter
+from aiogram.filters import CommandStart, BaseFilter, Command
 from aiogram.types import Message
 from dotenv import load_dotenv
 
@@ -23,18 +24,54 @@ logger = logging.getLogger(__name__)
 # Хранилище для отслеживания исходных сообщений пользователей
 message_ids = {}
 
+# Создание или подключение к SQLite базе данных
+db_path = "users.db"
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    username TEXT,
+    first_name TEXT,
+    last_name TEXT
+)
+""")
+conn.commit()
 
 # Кастомный фильтр для проверки на администратора
 class IsAdminFilter(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         return message.from_user.id in ADMIN_IDS
 
-
 @dp.message(CommandStart())
 async def start(message: Message):
-    await message.answer("Привет! Отправьте мне сообщение, и я передам его администратору.")
-    logger.info(f"Пользователь {message.from_user.id} начал диалог.")
+    # Сохранение данных пользователя в базу данных
+    user_id = message.from_user.id
+    cursor.execute("""
+    INSERT OR IGNORE INTO users (id, username, first_name, last_name)
+    VALUES (?, ?, ?, ?)
+    """, (user_id, message.from_user.username, message.from_user.first_name, message.from_user.last_name))
+    conn.commit()
 
+    await message.answer("Привет! Отправьте мне сообщение, и я передам его администратору.")
+    logger.info(f"Пользователь {user_id} начал диалог.")
+
+@dp.message(Command(commands=["users"]), IsAdminFilter())
+async def get_users(message: Message):
+    # Получение всех пользователей из базы данных
+    cursor.execute("SELECT id, username, first_name, last_name FROM users")
+    users = cursor.fetchall()
+
+    if not users:
+        await message.answer("Список пользователей пуст.")
+        return
+
+    # Форматируем данные для вывода
+    user_list = "\n".join([f"{user[0]} | @{user[1]} | {user[2]} {user[3]}" for user in users])
+    response = f"ID | Username | First Name Last Name\n{'-'*40}\n{user_list}"
+
+    await message.answer(f"Список пользователей:\n\n{response}")
+    logger.info("Администратор запросил список пользователей.")
 
 @dp.message(F.reply_to_message, IsAdminFilter())
 async def reply_to_user(message: Message):
@@ -51,7 +88,6 @@ async def reply_to_user(message: Message):
         await message.reply("Не удалось найти пользователя для ответа.")
         logger.warning("Не удалось найти пользователя для ответа администратора.")
 
-
 @dp.message(F.text)
 async def forward_to_admin(message: Message):
     # Форматируем сообщение для отправки администратору
@@ -66,11 +102,9 @@ async def forward_to_admin(message: Message):
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения админу: {e}")
 
-
 async def main():
     logger.info("Бот запущен.")
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
