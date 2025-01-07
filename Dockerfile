@@ -22,7 +22,7 @@ ENV POETRY_VIRTUALENVS_CREATE=false
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies using Poetry
-RUN poetry install --no-dev
+RUN poetry install
 
 # Copy the bot module into the container
 COPY . .
